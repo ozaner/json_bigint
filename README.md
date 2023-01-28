@@ -49,11 +49,11 @@ If you want to format the encoded JSON, use the `EncoderSettings` object. It has
 - This package does not support [commented JSON](https://json5.org/), but neither does dart:convert...
 
 ## Why?
-If you've ever used [dart:convert](https://api.dart.dev/dart-convert/dart-convert-library.html), dart's standard library implementation of a JSON serializer, you might have noticed that it treats any integer bigger than $2^{63}-1$ as a double. This is presumably because the int data type in dart has a range from $[-2^{63},2^{63}-1]$.
+If you've ever used [dart:convert](https://api.dart.dev/dart-convert/dart-convert-library.html), dart's standard library implementation of a JSON serializer, you might have noticed that it treats any integer larger than 2^63-1 as a double. This is presumably because the int data type in dart has a range from [-2^63, 2^63-1].
 
 However the problem is, once these integers have been converted to doubles, they have irreversibly lost their precision. And unfortunately, there is currently no support to override this functionality to use the BigInt type.
 
 ### Why not use a third-party serializer
 As it turns out, all the big JSON serialization packages (e.g. [json_serializable](https://pub.dev/packages/json_serializable), [dart_mappable](https://pub.dev/packages/dart_mappable), [build-value](https://pub.dev/packages/built_value), [JSON5](https://pub.dev/packages/json5), etc.) all use the dart:convert serializer under the hood. Meaning there is no way for those packages to override this behavior.
 
-This is why I simply bit the bullet and made one myself that doesn't depend on dart:convert at all. *Encoding* JSON is relatively simple (although formatting/pretty print adds a bit of complexity) but *decoding* is another matter. Indeed, if it wasn't for the wonderful[petitparser](https://pub.dev/packages/petitparser) package, it would have been much more difficult.
+This is why I simply bit the bullet and made one myself that doesn't depend on dart:convert at all. *Encoding* JSON is relatively simple (although formatting/pretty print adds a bit of complexity) but *decoding* is another matter. Indeed, if it wasn't for the wonderful [petitparser](https://pub.dev/packages/petitparser) package, it would have been much more difficult.
