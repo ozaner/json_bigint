@@ -42,6 +42,6 @@ void main() {
     singleLineLimit: 30,
     afterKeyIndent: " ",
   );
-  String jsonFormatted = encodeJson(jsonMap2, encoderSettings: encSettings);
+  String jsonFormatted = encodeJson(jsonMap2, settings: encSettings);
   print(jsonFormatted);
 }

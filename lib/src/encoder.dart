@@ -13,18 +13,23 @@ class EncoderSettings {
   /// Has no effect if [indent] is "".
   final int? singleLineLimit;
 
-  const EncoderSettings(
-      {this.indent = "", this.singleLineLimit, this.afterKeyIndent = ""});
+  const EncoderSettings({
+    this.indent = "",
+    this.singleLineLimit,
+    this.afterKeyIndent = "",
+  });
 }
 
-String encodeJson(Object? val,
-    {int level = 1,
-    EncoderSettings encoderSettings = const EncoderSettings()}) {
+String encodeJson(
+  Object? val, {
+  int level = 1,
+  EncoderSettings settings = const EncoderSettings(),
+}) {
   if (val is Map) {
-    return encodeMap(val, level: level, encoderSettings: encoderSettings);
+    return encodeMap(val, level: level, settings: settings);
   }
   if (val is List) {
-    return encodeList(val, level: level, encoderSettings: encoderSettings);
+    return encodeList(val, level: level, settings: settings);
   }
   if (val is String) return encodeStr(val);
   if (val is num || val is BigInt || val is bool || val == null) return '$val';
@@ -39,53 +44,55 @@ String encodeStr(String val) {
   return '"$val"';
 }
 
-String encodeList(List val,
-    {int level = 1,
-    EncoderSettings encoderSettings = const EncoderSettings()}) {
+String encodeList(
+  List val, {
+  int level = 1,
+  EncoderSettings settings = const EncoderSettings(),
+}) {
   return _encodeComposite(
       val.map((v) {
-        return encodeJson(v,
-            level: level + 1, encoderSettings: encoderSettings);
+        return encodeJson(v, level: level + 1, settings: settings);
       }).toList(),
       "[",
       "]",
       level,
-      encoderSettings);
+      settings);
 }
 
-String encodeMap(Map val,
-    {int level = 1,
-    EncoderSettings encoderSettings = const EncoderSettings()}) {
+String encodeMap(
+  Map val, {
+  int level = 1,
+  EncoderSettings settings = const EncoderSettings(),
+}) {
   return _encodeComposite(
       val.entries.map((kvp) {
-        return '"${kvp.key}":${encoderSettings.afterKeyIndent}${encodeJson(kvp.value, level: level + 1, encoderSettings: encoderSettings)}';
+        return '"${kvp.key}":${settings.afterKeyIndent}${encodeJson(kvp.value, level: level + 1, settings: settings)}';
       }).toList(),
       "{",
       "}",
       level,
-      encoderSettings);
+      settings);
 }
 
 String _encodeComposite(List<String> valsEnc, String dL, String dR, int level,
-    EncoderSettings encoderSettings) {
+    EncoderSettings settings) {
   if (valsEnc.isEmpty) return "$dL$dR";
 
   var finalStr = dL;
   int totalChars = valsEnc.fold(0, (prevVal, str) => prevVal + str.length);
-  bool doIndent = encoderSettings.indent != "" && //indent enabled
-      (encoderSettings.singleLineLimit == null || //has no single line limit
-          totalChars >
-              encoderSettings.singleLineLimit!); //limit isnt't exceeded
+  bool doIndent = settings.indent != "" && //indent enabled
+      (settings.singleLineLimit == null || //has no single line limit
+          totalChars > settings.singleLineLimit!); //limit isnt't exceeded
 
   valsEnc.forEachIndexed((i, str) {
-    if (doIndent) finalStr += "\n${encoderSettings.indent * level}";
+    if (doIndent) finalStr += "\n${settings.indent * level}";
     finalStr += str;
     if (i != valsEnc.length - 1) {
       //not last item
       finalStr += ",";
     } else if (doIndent) {
       //last item with indent
-      finalStr += "\n${encoderSettings.indent * (level - 1)}$dR";
+      finalStr += "\n${settings.indent * (level - 1)}$dR";
     } else {
       //last item w/o indent
       finalStr += dR;

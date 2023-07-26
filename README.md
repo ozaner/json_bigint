@@ -110,7 +110,7 @@ If you want to format the encoded JSON, use the `EncoderSettings` object. It has
     singleLineLimit: 30,
     afterKeyIndent: " ",
   );
-  String jsonFormatted = encodeJson(jsonMap2, encoderSettings: encSettings);
+  String jsonFormatted = encodeJson(jsonMap2, settings: encSettings);
   print(jsonFormatted);
 ```
 
