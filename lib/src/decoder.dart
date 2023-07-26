@@ -1,12 +1,36 @@
 /// This class defines a complete (I think) implementation of a [JSON](https://json.org/) parser for dart. Complete with [BigInt] support.
 
+import 'package:meta/meta.dart';
 import 'package:petitparser/definition.dart';
 import 'package:petitparser/parser.dart';
 
 import 'constants.dart';
 
-/// Internal singleton JSON parser.
-final _jsonParser = _JsonDefinition().build<Object?>();
+@immutable
+class DecoderSettings {
+  /// Whether to return regular [int]s when possible
+  /// (i.e. when the int is between [-2^63, 2^63-1]).
+  final bool useIntWhenPossible;
+
+  /// Whether to treat exponentials (e.g. 12e+20) as integers when possible.
+  final bool treatExpAsIntWhenPossible;
+
+  const DecoderSettings({
+    this.useIntWhenPossible = false,
+    this.treatExpAsIntWhenPossible = false,
+  });
+
+  @override
+  bool operator ==(Object other) {
+    return other is DecoderSettings &&
+        useIntWhenPossible == other.useIntWhenPossible &&
+        treatExpAsIntWhenPossible == other.treatExpAsIntWhenPossible;
+  }
+
+  @override
+  int get hashCode =>
+      (useIntWhenPossible ? 1 : 0) + (treatExpAsIntWhenPossible ? 2 : 0);
+}
 
 /// Converts the given JSON-string [input] to its corresponding object.
 ///
@@ -14,12 +38,33 @@ final _jsonParser = _JsonDefinition().build<Object?>();
 ///
 ///     final result = parseJson('{"a": 1, "b": [2, 3.4], "c": false}');
 ///     print(result.value);  // {a: 1, b: [2, 3.4], c: false}
-Object? decodeJson(String input) => _jsonParser.parse(input).value;
+///
+/// Pass in decoder [settings] to change how integers are deserialized.
+Object? decodeJson(String input,
+    {DecoderSettings settings = const DecoderSettings()}) {
+  // Relying on the internal details of hashCode's impl is bad form,
+  // but it's fine for now...
+  final code = settings.hashCode;
+  if (code == 1) {
+    return _jsonParser1.parse(input).value;
+  } else if (code == 2) {
+    return _jsonParser2.parse(input).value;
+  } else if (code == 3) {
+    return _jsonParser3.parse(input).value;
+  } else {
+    return _jsonParser0.parse(input).value;
+  }
+}
 
 /// Object? grammar definition.
 class _JsonDefinition extends GrammarDefinition<Object?> {
+  final DecoderSettings settings;
+
+  const _JsonDefinition(this.settings);
+
   @override
   Parser<Object?> start() => ref0(value).end();
+
   Parser<Object?> value() => [
         ref0(stringToken),
         // ref0(integralToken),
@@ -78,9 +123,11 @@ class _JsonDefinition extends GrammarDefinition<Object?> {
   // Parser<BigInt> integralToken() => (char('-').optional() & digit().plus())
   //     .flatten('number expected')
   //     .map(BigInt.parse);
+  Parser<Object> numberToken() => ref0(numberPrimitive)
+      .flatten('number expected')
+      .trim()
+      .map((s) => _numOrBigInt(s, settings));
 
-  Parser<Object> numberToken() =>
-      ref0(numberPrimitive).flatten('number expected').trim().map(_numOrBigInt);
   Parser<void> numberPrimitive() =>
       char('-').optional() &
       char('0').or(digit().plus()) &
@@ -88,20 +135,78 @@ class _JsonDefinition extends GrammarDefinition<Object?> {
       anyOf('eE').seq(anyOf('-+').optional()).seq(digit().plus()).optional();
 }
 
-// BigInt _maxInt = BigInt.parse("9223372036854775807");
-// BigInt _minInt = BigInt.parse("-9223372036854775808");
-BigInt? _tryBigInt(String str) {
-  var val = BigInt.tryParse(str);
-  if (val == null) return null; //non-integral
-  return val;
+BigInt? _tryBigIntExp(String str) {
+  try {
+    final match = _exp.firstMatch(str);
+    if (match != null) {
+      //calc coef
+      final sign = match.group(1) == '-' ? -1 : 1;
+      final coefStr = match.group(2)!;
+      var coef = int.tryParse(coefStr);
+      if (coef == null) return null; //coef too big
+      if (coef == 0) return BigInt.zero; //zero coefs work with any exponent
+      coef = sign * coef;
 
-  //uncomment if you want to return ints when possible
-  // if (val > _maxInt || val < _minInt) return val; //bigint
-  // return null; //63 bit signed int
+      //calc exp
+      final expSign = match.group(3) == '-' ? -1 : 1;
+      var exp = int.tryParse(match.group(4)!);
+      if (exp == null) return null; //exp too big
+      exp = expSign * exp;
+
+      //check if still integer despite negative exponent
+      if (exp < 0) {
+        exp = coefStr.length + exp; //new reduced exp
+
+        //vvv exp > 0 (0 was handled)
+        //vvv must be valid substring index, because 0 < exp < coef.length
+        if (exp < 1 || int.tryParse(coefStr.substring(exp)) != 0) return null;
+
+        coef = int.tryParse(coefStr.substring(0, exp - 1))!; //new reduced coef
+      }
+      return BigInt.from(coef) * BigInt.tryParse('1${'0' * exp}')!;
+    }
+  } catch (e) {
+    return null; //shouldn't happen but failsafe...
+  }
+  return null; //not exp notation int
 }
 
-Object _numOrBigInt(String str) {
-  var biVal = _tryBigInt(str);
-  if (biVal != null) return biVal;
-  return num.parse(str);
+Object _numOrBigInt(String str, DecoderSettings settings) {
+  var biVal = BigInt.tryParse(str); //try as bigint
+
+  //if didn't work as bigint, try as exp->bigint
+  if (biVal == null && settings.treatExpAsIntWhenPossible) {
+    biVal = _tryBigIntExp(str);
+  }
+  //return as int, if possible (& desired)
+  if (settings.useIntWhenPossible && biVal != null && biVal.isValidInt) {
+    return biVal.toInt();
+  }
+
+  return biVal ?? num.parse(str);
 }
+
+/// Internal regex for integers in scientific notation
+final _exp = RegExp(r'^([-,+]?)0*(\d+)[e,E]([-,+]?)(\d+)$');
+
+// Internal JSON parsers. One for each possible decoder setting config.
+// Bit of a hack, but avoids having to build a parser on each invocation.
+final _jsonParser0 = _JsonDefinition(DecoderSettings(
+  useIntWhenPossible: false,
+  treatExpAsIntWhenPossible: false,
+)).build<Object?>();
+
+final _jsonParser1 = _JsonDefinition(DecoderSettings(
+  useIntWhenPossible: true,
+  treatExpAsIntWhenPossible: false,
+)).build<Object?>();
+
+final _jsonParser2 = _JsonDefinition(DecoderSettings(
+  useIntWhenPossible: false,
+  treatExpAsIntWhenPossible: true,
+)).build<Object?>();
+
+final _jsonParser3 = _JsonDefinition(DecoderSettings(
+  useIntWhenPossible: true,
+  treatExpAsIntWhenPossible: true,
+)).build<Object?>();
