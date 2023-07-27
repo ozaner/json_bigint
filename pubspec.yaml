@@ -1,13 +1,13 @@
 name: json_bigint
 description: A json serializer for dart that supports BigInt.
-version: 1.0.0+1
+version: 2.0.0
 repository: https://github.com/ozaner/json_bigint
 issue_tracker: https://github.com/ozaner/json_bigint/issues
 homepage: https://github.com/ozaner/json_bigint
 documentation: https://github.com/ozaner/json_bigint
 
 environment:
-  sdk: '>=2.18.6 <3.0.0'
+  sdk: '>=2.18.6 <4.0.0'
 
 dependencies:
   meta: ^1.8.0
