@@ -1,35 +1,35 @@
 /// This class defines a complete (I think) implementation of a [JSON](https://json.org/) parser for dart. Complete with [BigInt] support.
 
+import 'package:json_bigint/src/encoder.dart';
 import 'package:meta/meta.dart';
 import 'package:petitparser/definition.dart';
 import 'package:petitparser/parser.dart';
 
 import 'constants.dart';
 
+bool useIntWhenValid(BigInt bi) => bi.isValidInt;
+
 @immutable
 class DecoderSettings {
-  /// Whether to return regular [int]s when possible
-  /// (i.e. when the int is between [-2^63, 2^63-1]).
-  final bool useIntWhenPossible;
+  final bool Function(BigInt bi) whetherUseInt;
 
   /// Whether to treat exponentials (e.g. 12e+20) as integers when possible.
   final bool treatExpAsIntWhenPossible;
 
   const DecoderSettings({
-    this.useIntWhenPossible = false,
+    this.whetherUseInt = useIntWhenValid,
     this.treatExpAsIntWhenPossible = false,
   });
 
   @override
   bool operator ==(Object other) {
     return other is DecoderSettings &&
-        useIntWhenPossible == other.useIntWhenPossible &&
+        whetherUseInt == other.whetherUseInt &&
         treatExpAsIntWhenPossible == other.treatExpAsIntWhenPossible;
   }
 
   @override
-  int get hashCode =>
-      (useIntWhenPossible ? 1 : 0) + (treatExpAsIntWhenPossible ? 2 : 0);
+  int get hashCode => Object.hash(whetherUseInt, treatExpAsIntWhenPossible);
 }
 
 /// Converts the given JSON-string [input] to its corresponding object.
@@ -40,19 +40,14 @@ class DecoderSettings {
 ///     print(result.value);  // {a: 1, b: [2, 3.4], c: false}
 ///
 /// Pass in decoder [settings] to change how integers are deserialized.
-Object? decodeJson(String input,
-    {DecoderSettings settings = const DecoderSettings()}) {
-  // Relying on the internal details of hashCode's impl is bad form,
-  // but it's fine for now...
-  final code = settings.hashCode;
-  if (code == 1) {
-    return _jsonParser1.parse(input).value;
-  } else if (code == 2) {
-    return _jsonParser2.parse(input).value;
-  } else if (code == 3) {
-    return _jsonParser3.parse(input).value;
+Object? decodeJson(
+  String input, {
+  DecoderSettings? settings,
+}) {
+  if (settings == null) {
+    return JSONBigIntConfig._parser.parse(input).value;
   } else {
-    return _jsonParser0.parse(input).value;
+    return _JsonDefinition(settings).build<Object?>().parse(input).value;
   }
 }
 
@@ -81,9 +76,11 @@ class _JsonDefinition extends GrammarDefinition<Object?> {
         ref0(objectElements),
         char('}').trim(),
       ).map3((_, elements, __) => elements);
+
   Parser<Map<String, Object?>> objectElements() => ref0(objectElement)
       .starSeparated(char(',').trim())
       .map((list) => Map.fromEntries(list.elements));
+
   Parser<MapEntry<String, Object?>> objectElement() =>
       seq3(ref0(stringToken), char(':').trim(), ref0(value))
           .map3((key, _, value) => MapEntry(key, value));
@@ -93,11 +90,14 @@ class _JsonDefinition extends GrammarDefinition<Object?> {
         ref0(arrayElements),
         char(']').trim(),
       ).map3((_, elements, __) => elements);
+
   Parser<List<Object?>> arrayElements() =>
       ref0(value).starSeparated(char(',').trim()).map((list) => list.elements);
 
   Parser<bool> trueToken() => string('true').trim().map((_) => true);
+
   Parser<bool> falseToken() => string('false').trim().map((_) => false);
+
   Parser<Object?> nullToken() => string('null').trim().map((_) => null);
 
   Parser<String> stringToken() => seq3(
@@ -105,16 +105,20 @@ class _JsonDefinition extends GrammarDefinition<Object?> {
         ref0(characterPrimitive).star(),
         char('"'),
       ).trim().map3((_, chars, __) => chars.join());
+
   Parser<String> characterPrimitive() => [
         ref0(characterNormal),
         ref0(characterEscape),
         ref0(characterUnicode),
       ].toChoiceParser();
+
   Parser<String> characterNormal() => pattern('^"\\');
+
   Parser<String> characterEscape() => seq2(
         char('\\'),
         anyOf(jsonEscapeChars.keys.join()),
       ).map2((_, char) => jsonEscapeChars[char]!);
+
   Parser<String> characterUnicode() => seq2(
         string('\\u'),
         pattern('0-9A-Fa-f').times(4).flatten('4-digit hex number expected'),
@@ -179,7 +183,7 @@ Object _numOrBigInt(String str, DecoderSettings settings) {
     biVal = _tryBigIntExp(str);
   }
   //return as int, if possible (& desired)
-  if (settings.useIntWhenPossible && biVal != null && biVal.isValidInt) {
+  if (biVal != null && settings.whetherUseInt(biVal)) {
     return biVal.toInt();
   }
 
@@ -189,24 +193,24 @@ Object _numOrBigInt(String str, DecoderSettings settings) {
 /// Internal regex for integers in scientific notation
 final _exp = RegExp(r'^([-,+]?)0*(\d+)[e,E]([-,+]?)(\d+)$');
 
-// Internal JSON parsers. One for each possible decoder setting config.
-// Bit of a hack, but avoids having to build a parser on each invocation.
-final _jsonParser0 = _JsonDefinition(DecoderSettings(
-  useIntWhenPossible: false,
-  treatExpAsIntWhenPossible: false,
-)).build<Object?>();
+// ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
 
-final _jsonParser1 = _JsonDefinition(DecoderSettings(
-  useIntWhenPossible: true,
-  treatExpAsIntWhenPossible: false,
-)).build<Object?>();
+/// global settings for the JSONBigInt library.
+abstract class JSONBigIntConfig {
+  static EncoderSettings encoderSettings = const EncoderSettings();
 
-final _jsonParser2 = _JsonDefinition(DecoderSettings(
-  useIntWhenPossible: false,
-  treatExpAsIntWhenPossible: true,
-)).build<Object?>();
+  static DecoderSettings _decoderSettings = const DecoderSettings();
 
-final _jsonParser3 = _JsonDefinition(DecoderSettings(
-  useIntWhenPossible: true,
-  treatExpAsIntWhenPossible: true,
-)).build<Object?>();
+  /// To avoid rebuilding the parser every time decodeJson is called, a parser is cached internally and updated every time the setting is modified.
+  /// However, since Dart does not have access control as granular as Rust's `pub(crate)`, I have to define this class here (not very elegant but effective).
+  static Parser<Object?> _parser =
+      const _JsonDefinition(DecoderSettings()).build<Object?>();
+
+  static DecoderSettings get decoderSettings => _decoderSettings;
+
+  static set decoderSettings(DecoderSettings settings) {
+    _decoderSettings = settings;
+    // rebuild parser with new settings
+    _parser = _JsonDefinition(settings).build<Object?>();
+  }
+}

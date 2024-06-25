@@ -1,6 +1,7 @@
 import 'package:meta/meta.dart';
 
 import 'constants.dart';
+import 'decoder.dart';
 
 @immutable
 class EncoderSettings {
@@ -22,8 +23,11 @@ class EncoderSettings {
 String encodeJson(
   Object? val, {
   int level = 1,
-  EncoderSettings settings = const EncoderSettings(),
+  EncoderSettings? settings,
 }) {
+  // since JSONBigIntConfig.encoderSettings is not const, we can't use it as default value
+  settings ??= JSONBigIntConfig.encoderSettings;
+
   if (val is Map) {
     return encodeMap(val, level: level, settings: settings);
   }
