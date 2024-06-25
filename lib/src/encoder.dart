@@ -1,4 +1,3 @@
-import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
 
 import 'constants.dart';
@@ -84,10 +83,10 @@ String _encodeComposite(List<String> valsEnc, String dL, String dR, int level,
       (settings.singleLineLimit == null || //has no single line limit
           totalChars > settings.singleLineLimit!); //limit isnt't exceeded
 
-  valsEnc.forEachIndexed((i, str) {
+  for (int index = 0; index < valsEnc.length; index += 1) {
     if (doIndent) finalStr += "\n${settings.indent * level}";
-    finalStr += str;
-    if (i != valsEnc.length - 1) {
+    finalStr += valsEnc[index];
+    if (index != valsEnc.length - 1) {
       //not last item
       finalStr += ",";
     } else if (doIndent) {
@@ -97,6 +96,6 @@ String _encodeComposite(List<String> valsEnc, String dL, String dR, int level,
       //last item w/o indent
       finalStr += dR;
     }
-  });
+  }
   return finalStr;
 }
