@@ -1,28 +1,3 @@
-> This is a fork of the `json_bigint` library
-
-## What does this fork do?
-
-- Remove unnecessary dependencies `collect` (this also reduces function call costs)
-- Add a class called `JSONBigIntConfig` for global configuration of encoding and decoding settings
-- Change `useIntWhenPossible` of `DecoderSettings` class to `whetherUseInt` to provide more fine-grained control (This is mainly to avoid errors caused by the difference between `BigInt.isValidInt` on native and web)
-
-### Example of `whetherUseInt`
-
-```dart
-void main() {
-  // control whether to use int
-  final result = decodeJson(
-    '{"a": 1, "b": [2, 3.4], "c": false, "d": 123}',
-    // use int only when value is less than 10, otherwise use BigInt
-    settings: DecoderSettings(whetherUseInt: (v) => v < BigInt.from(10)),
-  ) as Map;
-  print(result['a'].runtimeType); // int
-  print(result['d'].runtimeType); // _BigIntImpl
-}
-```
-
----
-
 # json_bigint
 
 This is a dart package that provides methods for encoding and decoding JSON strings from/to dart maps, with
