@@ -1,7 +1,7 @@
-import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
 
 import 'constants.dart';
+import 'decoder.dart';
 
 @immutable
 class EncoderSettings {
@@ -23,8 +23,11 @@ class EncoderSettings {
 String encodeJson(
   Object? val, {
   int level = 1,
-  EncoderSettings settings = const EncoderSettings(),
+  EncoderSettings? settings,
 }) {
+  // since JSONBigIntConfig.encoderSettings is not const, we can't use it as default value
+  settings ??= JSONBigIntConfig.encoderSettings;
+
   if (val is Map) {
     return encodeMap(val, level: level, settings: settings);
   }
@@ -84,10 +87,10 @@ String _encodeComposite(List<String> valsEnc, String dL, String dR, int level,
       (settings.singleLineLimit == null || //has no single line limit
           totalChars > settings.singleLineLimit!); //limit isnt't exceeded
 
-  valsEnc.forEachIndexed((i, str) {
+  for (int index = 0; index < valsEnc.length; index += 1) {
     if (doIndent) finalStr += "\n${settings.indent * level}";
-    finalStr += str;
-    if (i != valsEnc.length - 1) {
+    finalStr += valsEnc[index];
+    if (index != valsEnc.length - 1) {
       //not last item
       finalStr += ",";
     } else if (doIndent) {
@@ -97,6 +100,6 @@ String _encodeComposite(List<String> valsEnc, String dL, String dR, int level,
       //last item w/o indent
       finalStr += dR;
     }
-  });
+  }
   return finalStr;
 }

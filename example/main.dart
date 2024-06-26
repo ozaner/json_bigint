@@ -20,7 +20,6 @@ void main() {
   print("\nDecoding w/ settings:");
   print("------------------------");
   final decSettings = DecoderSettings(
-    useIntWhenPossible: true,
     treatExpAsIntWhenPossible: true,
   );
   final jsonMap2 = decodeJson(
@@ -44,4 +43,28 @@ void main() {
   );
   String jsonFormatted = encodeJson(jsonMap2, settings: encSettings);
   print(jsonFormatted);
+
+  // control whether to use int
+  String json2 = '''{
+    "numberOutOfIntRange": 99999999999999999999999,
+    "numberInIntRange": 123456,
+    "aSmallNumber": 42
+  }''';
+  final resultWithDefaultSetting = decodeJson(json2) as Map;
+  printObj('numberOutOfIntRange',
+      resultWithDefaultSetting['numberOutOfIntRange']); // _BigIntImpl
+  printObj(
+      'numberInIntRange', resultWithDefaultSetting['numberInIntRange']); // int
+  printObj('aSmallNumber', resultWithDefaultSetting['aSmallNumber']); // int
+
+  final resultWithCustomSetting = decodeJson(
+    json2,
+    // use int only when value is less than 10, otherwise use BigInt
+    settings: DecoderSettings(whetherUseInt: (v) => v < BigInt.from(10)),
+  ) as Map;
+  printObj('numberOutOfIntRange',
+      resultWithCustomSetting['numberOutOfIntRange']); // _BigIntImpl
+  printObj('numberInIntRange',
+      resultWithCustomSetting['numberInIntRange']); // _BigIntImpl
+  printObj('aSmallNumber', resultWithDefaultSetting['aSmallNumber']); // int
 }
