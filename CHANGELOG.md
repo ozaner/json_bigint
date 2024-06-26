@@ -1,3 +1,6 @@
+## 3.0.0
+- Replace `useIntWhenPossible` with `whetherUseInt` in `DecoderSettings`
+
 ## 2.0.0
 - Added `DecoderSettings` param to decode method.
 - Renamed `encoderSettings` param to `settings` in encode method.
