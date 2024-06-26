@@ -11,6 +11,9 @@ bool useIntWhenValid(BigInt bi) => bi.isValidInt;
 
 @immutable
 class DecoderSettings {
+  /// controls whether to use [int] rather than [BigInt] when possible.
+  ///
+  /// Default to [useIntWhenValid], which uses [BigInt.isValidInt] to determine whether to use [int].
   final bool Function(BigInt bi) whetherUseInt;
 
   /// Whether to treat exponentials (e.g. 12e+20) as integers when possible.

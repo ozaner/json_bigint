@@ -25,10 +25,8 @@ void printObj(String key, Object? val) =>
 Below is an example of how the decoder method works:
 
 ```dart
-  print
-("Decoding:
-"
-);print("------------------------");
+print("Decoding:");
+print("------------------------");
 var jsonMap = decodeJson(json) as Map<String, Object?>;
 printObj("sometext", jsonMap["sometext"]);
 printObj("bignumber", jsonMap["bignumber"]);
@@ -37,7 +35,6 @@ printObj("expnumber", jsonMap["expnumber"]);
 print("\nDecoding w/ settings:");
 print("------------------------");
 var decSettings = DecoderSettings(
-useIntWhenPossible: true,
 treatExpAsIntWhenPossible: true,
 );
 var jsonMap2 = decodeJson(
@@ -63,20 +60,17 @@ expnumber is of type double and has value: 2000.0.
 If you want to change how certain numbers are cast to integers, pass a `DecoderSettings` object. It has the following
 parameters:
 
-- `useIntWhenPossible`: By default, the decoder decodes any integer as a `BigInt`, if instead you want the decoder to
-  return an `int` where possible (i.e. the value can fit in an int), then set this to true.
+- `whetherUseInt`: controls whether to use `int` rather than `BigInt` when possible.
+  - By default, it uses `BigInt.isValidInt` to judge whether to use `int` or `BigInt`.
+  - If you want to interpret **all** numbers as `BigInt`, use something like`(_) => false` 
+  - If your project targets both native and web, it is recommended that you control it yourself (for example, use `(v) => v <= BigInt.parse('9007199254740991')`)
 - `treatExpAsIntWhenPossible`: By default, the decoder treats values written in exponential notation (e.g. 1e12) as
   doubles. To treat these as integers when possible (i.e. if they evaluate to an integer), set this to true.
 
 ```dart
-  print
-("\nDecoding w/ settings:
-"
-);print("------------------------");
-var decSettings = DecoderSettings(
-useIntWhenPossible: true,
-treatExpAsIntWhenPossible: true,
-);
+print("\nDecoding w/ settings:");
+print("------------------------");
+var decSettings = DecoderSettings(treatExpAsIntWhenPossible: true);
 var jsonMap2 = decodeJson(
 json,
 settings: decSettings,
@@ -99,17 +93,10 @@ expnumber is of type int and has value: 2000.
 Below is an example of how the encoder method works:
 
 ```dart
-  print
-("\nEncoding:
-"
-);print("------------------------");
-String jsonNew = encodeJson(
-jsonMap
-);
-print
-(
-jsonNew
-);
+print("\nEncoding:");
+print("------------------------");
+String jsonNew = encodeJson(jsonMap);
+print(jsonNew);
 ```
 
 It prints out:
@@ -131,20 +118,15 @@ If you want to format the encoded JSON, use the `EncoderSettings` object. It has
 - `afterKeyIndent`: how much to indent between the key and value in a map. The default is the empty String.
 
 ```dart
-  print
-("\nEncoding w/ Settings:
-"
-);print("------------------------");
+print("\nEncoding w/ Settings:");
+print("------------------------");
 final encSettings = EncoderSettings(
 indent: "  ",
 singleLineLimit: 30,
 afterKeyIndent: " ",
 );
 String jsonFormatted = encodeJson(jsonMap2, settings: encSettings);
-print
-(
-jsonFormatted
-);
+print(jsonFormatted);
 ```
 
 It prints out:
