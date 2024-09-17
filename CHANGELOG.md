@@ -1,3 +1,6 @@
+## 3.1.0
+- Weakened dependency constraints on `petitparser` from `^5.1.0` to `>=5.1.0 <7.0.0`.
+
 ## 3.0.0
 - Replace `useIntWhenPossible` with `whetherUseInt` in `DecoderSettings`
 
